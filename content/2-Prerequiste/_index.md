@@ -1,5 +1,5 @@
 ---
-title : "Configure Monitoring Environment "
+title : "Verify Environment Configuration "
 date : "`r Sys.Date()`"
 weight : 2
 chapter : false
@@ -18,4 +18,5 @@ In order to use this solution to automatically monitor and remediate compliance 
   - [2.1 Prepare Monitoring Environment](2.1-createec2/)
 
   - [Verify Environment Configuration](2.2-createiamrole/)
+
 
