@@ -51,7 +51,7 @@ aws securityhub disable-security-hub --region "$REGION"
 (If using multi-account/aggregation, disable from the delegated/admin account first.)
 
 
-# 6.4 Stop and delete CloudTrail (lab trail)
+## 6.4 Stop and delete CloudTrail (lab trail)
 ```bash
 
 TRAIL="network-compliance-trail"
@@ -79,7 +79,7 @@ aws s3api delete-objects --bucket "$BUCKET" --delete \
 aws s3api delete-bucket --bucket "$BUCKET" --region "$REGION"
 ```
 
-# 6.6 Remove IAM roles/policies used for the lab
+## 6.6 Remove IAM roles/policies used for the lab
 Detach and delete policies you created for:
 
 **ConfigRemediationAutomationRole** (SSM Automation)
@@ -88,10 +88,11 @@ Detach and delete policies you created for:
 
 Then delete the roles themselves.
 
-# 6.7 (Optional) Delete Glue/Athena/QuickSight artifacts
+## 6.7 (Optional) Delete Glue/Athena/QuickSight artifacts
 **Glue:** delete Crawlers, Database, and Tables created for the lab.
 
 **Athena:** clear query results in the S3 athena-results/ prefix if desired.
 
 **QuickSight:** delete datasets/dashboards; remove S3/Athena/Glue permissions.
+
 
