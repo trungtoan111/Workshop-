@@ -1,5 +1,5 @@
 ---
-title : "Manage and Analyze Audit Logs"
+title : "Prepare Data for QuickSight Dashboards"
 date : "`r Sys.Date()`"
 weight : 4
 chapter : false
@@ -22,3 +22,4 @@ In this section, we will proceed to create an S3 bucket and configure the sessio
    - [Create S3 Gateway endpoint](./4.3-creategwes3)
 
    - [Configure **Session logs**](./4.4-configsessionlogs/)
+
