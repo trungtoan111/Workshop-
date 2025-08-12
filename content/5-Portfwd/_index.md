@@ -6,87 +6,190 @@ chapter : false
 pre : " <b> 5. </b> "
 ---
 
-{{% notice info %}}
-**Port Forwarding** is a useful way to redirect network traffic from one IP address - Port to another IP address - Port. With **Port Forwarding** we can access an EC2 instance located in the private subnet from our workstation.
-{{% /notice %}}
+**Goal**  
+Automatically fix common misconfigurations the moment they’re detected. You’ll set up **native AWS Config remediation with SSM Automation (recommended)**, and an alternative **EventBridge → Lambda** path for custom fixes. All actions are logged for audit.
 
-We will configure **Port Forwarding** for the RDP connection between our machine and **Private Windows Instance** located in the private subnet we created for this exercise.
+> **Prerequisites**
+> - Section 2 is complete (S3 logs bucket, CloudTrail, Config recording).
+> - Security Hub standards (FSBP / CIS / PCI) are enabled (Section 3.2.2).
+> - You have an **IAM role** that SSM Automation can assume to make changes (see below).
 
-![port-fwd](/images/arc-04.png) 
+### Architecture
+![Auto-remediation flow: Config → (SSM Automation or EventBridge→Lambda) → Logs/CloudTrail](/images/5-arch-remediation.png)
 
-#### Create IAM user with permission to connect SSM
+---
 
-1. Go to [IAM service management console](https://console.aws.amazon.com/iamv2/home)
-   + Click **Users** , then click **Add users**.
+## 5.1 Choose what to auto-remediate
 
-![FWD](/images/5.fwd/001-fwd.png)
+Start with low-risk, high-signal fixes:
+- **S3**: enforce bucket encryption; block public access.
+- **Security Groups**: remove `0.0.0.0/0` on SSH(22) / RDP(3389).
+- **VPC Flow Logs**: ensure enabled at VPC/Subnet/ENI level.
+- **CloudTrail**: keep multi-Region & log file validation ON.
 
-2. At the **Add user** page.
-   + In the **User name** field, enter **Portfwd**.
-   + Click on **Access key - Programmatic access**.
-   + Click **Next: Permissions**.
-  
-![FWD](/images/5.fwd/002-fwd.png)
+> Tip: Keep “detect only” for impactful changes (e.g., database/networking in prod) until change control is in place.
 
-3. Click **Attach existing policies directly**.
-   + In the search box, enter **ssm**.
-   + Click on **AmazonSSMFullAccess**.
-   + Click **Next: Tags**, click **Next: Reviews**.
-   + Click **Create user**.
+---
 
-4. Save **Access key ID** and **Secret access key** information to perform AWS CLI configuration.
+## 5.2 Native: AWS Config Remediation with SSM Automation (recommended)
 
-#### Install and Configure AWS CLI and Session Manager Plugin
-  
-To perform this hands-on, make sure your workstation has [AWS CLI]() and [Session Manager Plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session) installed -manager-working-with-install-plugin.html)
+**Why**: first-class integration, retries/backoff, clear audit in Config + CloudTrail.
 
-More hands-on tutorials on installing and configuring the AWS CLI can be found [here](https://000011.awsstudygroup.com/).
+### A) Create/verify the **AutomationAssumeRole** (used by SSM Automation)
+This role performs the actual changes during remediation.
 
-{{%notice tip%}}
-With Windows, when extracting the **Session Manager Plugin** installation folder, run the **install.bat** file with Administrator permission to perform the installation.
-{{%/notice%}}
-
-#### Implement Portforwarding
-
-1. Run the command below in **Command Prompt** on your machine to configure **Port Forwarding**.
-
-```
-   aws ssm start-session --target (your ID windows instance) --document-name AWS-StartPortForwardingSession --parameters portNumber="3389",localPortNumber="9999" --region (your region)
-```
-{{%notice tip%}}
-
-**Windows Private Instance** **Instance ID** information can be found when you view the EC2 Windows Private Instance server details.
-
-{{%/notice%}}
-
-   + Example command:
-
-```
-C:\Windows\system32>aws ssm start-session --target i-06343d7377486760c --document-name AWS-StartPortForwardingSession --parameters portNumber="3389",localPortNumber="9999" --region ap-southeast-1
+**Policy sketch (adjust to your scope):**
+```json
+{
+  "Version":"2012-10-17",
+  "Statement":[
+    { "Effect":"Allow","Action":["s3:PutBucketEncryption","s3:PutBucketAcl","s3:PutBucketPolicy"],"Resource":"*" },
+    { "Effect":"Allow","Action":["ec2:RevokeSecurityGroupIngress","ec2:DescribeSecurityGroups"],"Resource":"*" },
+    { "Effect":"Allow","Action":["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents"],"Resource":"*" }
+  ]
+}
+Attach this policy to a role (e.g., ConfigRemediationAutomationRole) that SSM can assume.
 ```
 
-{{%notice warning%}}
+## B) Associate a remediation to a Config rule
+Example: for **S3 bucket encryption** (rule: S3_BUCKET_SERVER_SIDE_ENCRYPTION_ENABLED) use the managed runbook AWS-ConfigureS3BucketEncryption.
 
-If your command gives an error like below: \
-SessionManagerPlugin is not found. Please refer to SessionManager Documentation here: http://docs.aws.amazon.com/console/systems-manager/session-manager-plugin-not-found\
-Prove that you have not successfully installed the Session Manager Plugin. You may need to relaunch **Command Prompt** after installing **Session Manager Plugin**.
+**Find runbook parameters first:**
 
-{{%/notice%}}
+```bash
 
-2. Connect to the **Private Windows Instance** you created using the **Remote Desktop** tool on your workstation.
-   + In the Computer section: enter **localhost:9999**.
+aws ssm describe-document --name AWS-ConfigureS3BucketEncryption --query 'Document.Parameters'
+Wire the remediation (automatic)
+```
 
+```bash
 
-![FWD](/images/5.fwd/003-fwd.png)
+REGION=ap-southeast-1
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
+aws configservice put-remediation-configurations \
+  --region "$REGION" \
+  --remediation-configurations '[
+    {
+      "ConfigRuleName":"S3_BUCKET_SERVER_SIDE_ENCRYPTION_ENABLED",
+      "TargetType":"SSM_DOCUMENT",
+      "TargetId":"AWS-ConfigureS3BucketEncryption",
+      "Automatic":true,
+      "RetryAttemptSeconds":60,
+      "MaximumAutomaticAttempts":3,
+      "Parameters":{
+        "AutomationAssumeRole":{"StaticValue":{"Values":["arn:aws:iam::'"$ACCOUNT_ID"':role/ConfigRemediationAutomationRole"]}},
+        "BucketName":{"ResourceValue":{"Value":"RESOURCE_ID"}},
+        "SSEAlgorithm":{"StaticValue":{"Values":["AES256"]}}
+      }
+    }
+  ]'
+```
 
-3. Return to the administration interface of the System Manager - Session Manager service.
-   + Click tab **Session history**.
-   + We will see session logs with Document name **AWS-StartPortForwardingSession**.
+Notes
 
+Use RESOURCE_ID/RESOURCE_TYPE mappings for parameters that come from the non-compliant resource.
 
-![FWD](/images/5.fwd/004-fwd.png)
+Repeat for other rules (e.g., a remediation runbook to restrict SG ingress).
 
+Results appear under AWS Config → Rules → (rule) → Remediation history.
 
+📸 Upload later:
 
-Congratulations on completing the lab on how to use Session Manager to connect and store session logs in S3 bucket. Remember to perform resource cleanup to avoid unintended costs.
+/images/5-2-config-remediation-wire.png (Attach remediation to rule)
+
+/images/5-2-remediation-history.png (Remediation history & status)
+
+## 5.3 Alternative: EventBridge → Lambda (for custom fixes)
+Use when you need custom logic beyond the managed runbooks.
+
+## A) Event pattern (Config non-compliant)
+```json
+Sao chép
+Chỉnh sửa
+{
+  "source": ["aws.config"],
+  "detail-type": ["Config Rules Compliance Change"],
+  "detail": {
+    "configRuleName": ["S3_BUCKET_SERVER_SIDE_ENCRYPTION_ENABLED"],
+    "newEvaluationResult": { "complianceType": ["NON_COMPLIANT"] }
+  }
+}
+```
+
+## B) Sample Lambda (Python 3.x): enforce S3 encryption
+```python
+
+import os, json, boto3
+
+s3 = boto3.client("s3")
+
+def lambda_handler(event, context):
+    # Config event → resourceId is the bucket name for S3 buckets
+    detail = event.get("detail", {})
+    resource_id = (detail.get("resourceId") or
+                   detail.get("newEvaluationResult", {}).get("evaluationResultIdentifier", {})
+                        .get("evaluationResultQualifier", {}).get("resourceId"))
+    if not resource_id:
+        return {"status": "skipped", "reason": "no resourceId"}
+
+    s3.put_bucket_encryption(
+        Bucket=resource_id,
+        ServerSideEncryptionConfiguration={
+            "Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]
+        }
+    )
+    return {"status":"remediated","bucket":resource_id}
+```
+
+**Execution role (minimal):**
+
+s3:PutBucketEncryption on target buckets
+
+CloudWatch Logs permissions for logging
+
+📸 Upload later:
+
+/images/5-3-eb-rule.png (EventBridge rule)
+
+/images/5-3-lambda-logs.png (Lambda invocation logs)
+
+## 5.4 Log & surface remediation
+**CloudTrail** records the API calls performed by SSM/Lambda (e.g., PutBucketEncryption, RevokeSecurityGroupIngress).
+
+**AWS Config** shows the Remediation history and status per resource.
+
+**Security Hub findings** auto-update on next evaluation; you can also set Workflow status via API if you manage state.
+
+**(Optional) Mark related Security Hub finding as RESOLVED**
+
+```bash
+
+# Example sketch: filter finding(s) and update workflow status
+aws securityhub batch-update-findings \
+  --region "$REGION" \
+  --finding-identifiers Id="<FINDING_ID>",ProductArn="<PRODUCT_ARN>" \
+  --workflow Status="RESOLVED" \
+  --note Text="Auto-remediated by Config/SSM",UpdatedBy="automation"
+```
+
+## 5.5 Test the flow
+Create a **non-compliant** resource (e.g., S3 bucket without encryption).
+
+Wait for Config evaluation → **NON_COMPLIANT**.
+
+Observe remediation (SSM Automation or Lambda) apply the fix.
+
+Verify:
+
+S3 now has **Default Encryption**
+
+Config rule back to **COMPLIANT**
+
+CloudTrail logs the change; Security Hub updates findings.
+
+📸 Upload later:
+
+/images/5-5-test-before.png (Bucket w/o encryption)
+
+/images/5-5-test-after.png (Encryption enforced + rule compliant)
