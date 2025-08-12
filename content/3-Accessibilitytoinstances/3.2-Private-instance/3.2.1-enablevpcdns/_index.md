@@ -1,5 +1,5 @@
 ---
-title : "Enable DNS hostnames"
+title : "Enable AWS Security Hub"
 date : "`r Sys.Date()`"
 weight : 1
 chapter : false
@@ -21,5 +21,6 @@ pre : " <b> 3.2.1 </b> "
 2. At the **Edit DNS hostnames** page.
    + Click to select **Enable**.
    + Click **Save changes**.
+
 
 ![Connect](/images/3.connect/010-connect.png)
