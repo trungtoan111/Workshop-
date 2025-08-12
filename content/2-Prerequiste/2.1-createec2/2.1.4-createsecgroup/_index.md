@@ -1,5 +1,5 @@
 ---
-title : "Create security groups"
+title : "Enable AWS CloudTrail"
 date : "`r Sys.Date()`"
 weight : 4
 chapter : false
@@ -77,5 +77,6 @@ For the Instance in the private subnet, we will connect to the **Session Manager
   + Click **Create security group**.
 
 ![SG](/images/2.prerequisite/026-createsg.png)
+
 
 So we are done creating the necessary security groups for EC2 instances and VPC Endpoints.
