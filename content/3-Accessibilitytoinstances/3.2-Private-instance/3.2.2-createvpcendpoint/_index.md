@@ -1,5 +1,5 @@
 ---
-title : "Create VPC Endpoint"
+title : "Configure Security Standards and Controls"
 date : "`r Sys.Date()`"
 weight : 2
 chapter : false
@@ -20,4 +20,5 @@ You can refer to more [here](https://docs.aws.amazon.com/systems-manager/latest/
 ### Content:
   - [Create Endpoint ssm](./3.2.2.1-endpointssm/)
   - [Create Endpoint ssmmessages](./3.2.2.2-endpointssmmessages/)
+
   - [Create Endpoint ec2messages](./3.2.2.3-endpointec2messages/)
