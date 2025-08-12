@@ -1,6 +1,10 @@
-| title | date           | weight | chapter | pre                 |
-|------:|----------------|:------:|:-------:|:--------------------|
-| SOC 2 | `r Sys.Date()` |   1    |  false  | <b> 3.2.2.1 </b>    |
+---
+title : "PCI-DSS"
+date : "`r Sys.Date()`"
+weight : 1
+chapter : false
+pre : " <b> 3.2.2.1 </b> "
+---
 
 #### Enable SOC 2 Standard in AWS Security Hub
 
@@ -39,4 +43,5 @@ In this step, you will **enable the SOC 2 security standard** in AWS Security Hu
 ---
 
 **Outcome:** SOC 2 standard is enabled; related controls are evaluating and producing findings that you can use to drive **automated remediation** and **audit reporting** in later steps.
+
 
