@@ -14,7 +14,8 @@ In this step, you will **enable the SOC 2 security standard** in AWS Security Hu
    + Go to **Security standards**.  
    + Click **SOC 2** → **Enable standard** for your target Region.
 
-![Enable SOC 2](/images/3.2.2.1-soc2-enable.png)
+![Enable SOC 2]({{ "images/3.2.2.1-soc2-enable.png" | relURL }})
+
 
 2. Review and (optionally) tune **SOC 2 controls** commonly used in this workshop:  
    + **CloudTrail** enabled & **Log file validation** enabled.  
@@ -38,3 +39,4 @@ In this step, you will **enable the SOC 2 security standard** in AWS Security Hu
 ---
 
 **Outcome:** SOC 2 standard is enabled; related controls are evaluating and producing findings that you can use to drive **automated remediation** and **audit reporting** in later steps.
+
