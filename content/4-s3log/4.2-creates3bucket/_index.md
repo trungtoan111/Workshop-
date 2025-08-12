@@ -1,5 +1,5 @@
 ---
-title : "Create S3 Bucket"
+title : "Enable AWS CloudTrail for Full Logging"
 date : "`r Sys.Date()`"
 weight : 2
 chapter : false
@@ -33,4 +33,5 @@ The name of the S3 bucket must not be the same as all other S3 buckets in the sy
  {{%notice tip%}}
 When we created the S3 bucket we did **Block all public access** so our EC2 instances won't be able to connect to S3 via the internet.
 In the next step, we will configure the S3 Gateway Endpoint feature to allow EC2 instances to connect to the S3 bucket via the VPC's internal network.
+
 {{%/notice%}}
