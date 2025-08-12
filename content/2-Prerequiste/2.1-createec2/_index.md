@@ -1,5 +1,5 @@
 ---
-title : "Preparing VPC and EC2"
+title : "Create IAM Roles and Policies"
 date : "`r Sys.Date()`"
 weight : 1
 chapter : false
@@ -23,4 +23,5 @@ To learn how to create EC2 instances and VPCs with public/private subnets, you c
   - [Create Private Subnet](2.1.3-createprivatesubnet/)
   - [Create security group](2.1.4-createsecgroup/)
   - [Create public Linux server](2.1.5-createec2linux/)
+
   - [Create private Windows server](2.1.6-createec2windows/)
