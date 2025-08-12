@@ -1,5 +1,5 @@
 ---
-title : "Connect to Public Instance"
+title : "Connect AWS Config to Network Resources"
 date : "`r Sys.Date()`"
 weight : 1
 chapter : false
@@ -45,5 +45,6 @@ You will need to wait about 10 minutes before performing the next step. This tim
  Above, we have created a connection to the public instance without opening SSH port 22, for better security, avoiding any attack to the SSH port.\
 One disadvantage of the above method is that we have to open the Security Group outbound at port 443 to the internet. Since it's a public instance, it probably won't be a problem, but if you want extra security, you can block port 443 to the internet and still use the Session Manager. We will go through this in the private instance section below.
  {{% /notice %}}
+
 
  You can click terminate to end the currently connected session before proceeding to the next step.
