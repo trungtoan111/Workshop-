@@ -1,5 +1,5 @@
 ---
-title : "Create S3 Gateway endpoint"
+title : "Create Athena Tables for Log Analysis"
 date : "`r Sys.Date()`"
 weight : 3
 chapter : false
@@ -25,5 +25,6 @@ pre : " <b> 4.3 </b> "
 ![S3](/images/4.s3/009-s3.png)
 
 4. Scroll down, click **Create endpoint**.
+
 
 The next step is to configure Session Manager to store session logs to the S3 bucket we created.
