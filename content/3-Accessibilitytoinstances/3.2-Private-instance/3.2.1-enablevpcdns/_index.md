@@ -5,22 +5,28 @@ weight : 1
 chapter : false
 pre : " <b> 3.2.1 </b> "
 ---
-#### Enable DNS hostnames on VPC.
 
-1. To create VPC Endpoint we will need to enable **DNS hostnames** feature on VPC.
-  + Go to [VPC service management console](https://console.aws.amazon.com/vpc/home)
-  + Click **Your VPCs**.
-  + Select **Lab VPC**.
-  + Click **Actions**.
-  + Click **Edit DNS hostnames**.
+#### Enable DNS Hostnames on VPC
 
-  + Click **Endpoint**, then click **Create Endpoint**.
+> **Goal:** Enable **DNS hostnames** on your VPC to allow private service endpoints and compliance service integrations.
 
-![Connect](/images/3.connect/009-connect.png)
+1. **Open VPC Service**
+   + Go to [VPC console](https://console.aws.amazon.com/vpc/home).
+   + Click **Your VPCs** in the left panel.
+   + Select your **Lab VPC** (created in the prerequisite step).
+   + Click **Actions** → **Edit DNS hostnames**.
 
-2. At the **Edit DNS hostnames** page.
-   + Click to select **Enable**.
-   + Click **Save changes**.
+   📸 *Upload screenshot here:*  
+   `![VPC Console – Your VPCs](/images/3.connect/your-vpcs.png)`
 
+2. **Enable DNS Hostnames**
+   + On the **Edit DNS hostnames** page:
+     - Select **Enable**.
+     - Click **Save changes**.
 
-![Connect](/images/3.connect/010-connect.png)
+   📸 *Upload screenshot here:*  
+   `![Enable DNS Hostnames](/images/3.connect/enable-dns-hostnames.png)`
+
+---
+
+✅ **Tip:** This setting is required so AWS-managed private endpoints (e.g., Config, Security Hub) can resolve internal service names inside your VPC.
