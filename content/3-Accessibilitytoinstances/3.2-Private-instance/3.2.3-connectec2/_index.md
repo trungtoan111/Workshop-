@@ -7,40 +7,95 @@ pre : " <b> 3.2.3 </b> "
 ---
 
 
-#### Assign IAM role and restart EC2 instance.
+**Goal**  
+Connect to a **private EC2 instance** without public IP or bastion, using **AWS Systems Manager Session Manager**. Traffic stays **inside the VPC** via the SSM **VPC Interface Endpoints**.
 
-1. Go to [EC2 service management console](https://console.aws.amazon.com/ec2/v2/home)
-  + Click **Private Windows Instance**.
-  + Click **Actions**.
-  + Click **Security**.
-  + Click **Modify IAM Role**.
+> **Prerequisites**
+> - VPC Interface Endpoints created: `ssm`, `ssmmessages`, `ec2messages` (from 3.2.2.1–3.2.2.3).
+> - Instance has **SSM Agent** (Amazon Linux 2 / Windows AMIs include it) and IAM role **AmazonSSMManagedInstanceCore**.
+> - Endpoint Security Group allows **TCP 443** from your private subnets/VPC CIDR.
+> - VPC **DNS resolution/hostnames** enabled; **Private DNS** enabled on endpoints.
 
-![Connect](/images/3.connect/027-ec2role.png)
+---
 
-2. At the **Modify IAM Role** page.
-  + In the IAM role section, select **SSM-Role**.
-  + Click **Save**.
+## A) Connect via Console (browser session)
 
-![Connect](/images/3.connect/028-ec2role.png)
+1. **EC2 → Instances** → select your **private** instance.  
+2. Click **Connect** → tab **Session Manager** → **Start session**.  
+3. A shell opens in browser (Linux: bash/ash; Windows: PowerShell).
 
-3. Click **Private Windows Instance**.
-  + Click **Instance state**.
-  + Click **Reboot instance** to restart, then click **Reboot** to confirm.
+📸 Upload later:
+- `/images/3-2-3-ssm-console.png` *(Instance → Connect → Session Manager)*
+- `/images/3-2-3-start-session.png` *(Start session)*
+- `/images/3-2-3-shell.png` *(Interactive shell)*
 
-![Connect](/images/3.connect/029-ec2role.png)
+> No inbound ports (22/3389) are required on the instance Security Group.
 
-{{% notice note %}}
-Please wait 5 minutes before doing the next step.
- {{% /notice %}}
+---
 
-#### Connect to the private EC2 instance.
+## B) Connect via CLI
 
-1. Go to [System Manager - Session Manager service management console](https://console.aws.amazon.com/systems-manager/session-manager)
-  + Click **Start session**.
-  
-2. Click **Private Windows Instance**.
-  + Click **Start session**.
+### 1) Start an interactive shell
+```bash
+REGION=ap-southeast-1
+INSTANCE_ID=i-0123456789abcdef0
 
-3. Type **ipconfig** command to check the IP address information of **Private Windows Instance** as shown below.
+aws ssm start-session \
+  --region "$REGION" \
+  --target "$INSTANCE_ID"
+```
 
-![Connect](/images/3.connect/030-ec2role.png)
+## 2) (Windows) RDP through SSM Port Forwarding
+Port-forward local 13389 → 3389 on the instance, then open your RDP client to localhost:13389.
+
+```bash
+aws ssm start-session \
+  --region "$REGION" \
+  --target "$INSTANCE_ID" \
+  --document-name AWS-StartPortForwardingSession \
+  --parameters "localPortNumber=['13389'],portNumber=['3389']"
+```
+## 3) (Linux) SSH through SSM Port Forwarding (optional)
+If you prefer your SSH client instead of the browser shell:
+
+```bash
+
+# Forward local 1222 → instance 22
+aws ssm start-session \
+  --region "$REGION" \
+  --target "$INSTANCE_ID" \
+  --document-name AWS-StartPortForwardingSession \
+  --parameters "localPortNumber=['1222'],portNumber=['22']"
+
+# In another terminal:
+ssh -p 1222 ec2-user@127.0.0.1
+```
+
+No public IP, no inbound 22 on SG; SSH travels inside the SSM tunnel.
+
+📸 Upload later:
+
+/images/3-2-3-port-forward.png (Port forwarding session)
+
+/images/3-2-3-rdp.png (RDP to localhost:13389)
+
+## C) (Optional) Session logging
+To retain audit evidence, enable Session Manager preferences to log sessions to S3 and/or CloudWatch Logs (aligns with later reporting):
+
+/images/3-2-3-logging-prefs.png (Preferences → S3/CloudWatch destination)
+
+**Troubleshooting**
+**Session fails to start:**
+
+Missing one of the endpoints (ssm, ssmmessages, ec2messages) or Private DNS not enabled.
+
+Endpoint SG doesn’t allow 443 from your private subnets/VPC CIDR.
+
+Instance role lacks AmazonSSMManagedInstanceCore or the instance can’t reach endpoints (routing/DNS).
+
+**RDP/SSH over port-forwarding fails:**
+
+Service not listening (RDP disabled or SSH not running), or local firewall blocks the forwarded port.
+
+OS credentials incorrect (SSM doesn’t create users).
+
