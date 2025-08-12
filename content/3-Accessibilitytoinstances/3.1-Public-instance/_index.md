@@ -1,5 +1,5 @@
 ---
-title   : "3.1 Connect AWS Config to Network Resources"
+title   : "Connect AWS Config to Network Resources"
 date    : "`r Sys.Date()`"
 weight  : 1
 chapter : false
@@ -127,4 +127,5 @@ Keep the **S3 bucket** private, versioned, and encrypted (SSE-KMS if available).
 Pair recording with relevant managed rules (e.g., **RESTRICTED_SSH, VPC_FLOW_LOGS_ENABLED, EIP_ATTACHED)** and/or a **Conformance Pack** for network baselines.
 
 In multi-account setups, consider **delegated admin** for Security Hub/Config and use the **Aggregator** for a single pane of glass.
+
 
