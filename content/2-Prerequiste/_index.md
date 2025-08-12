@@ -1,5 +1,5 @@
 ---
-title : "Preparation "
+title : "Configure Monitoring Environment "
 date : "`r Sys.Date()`"
 weight : 2
 chapter : false
@@ -18,4 +18,5 @@ In order to use System Manager to manage our window instances in particular and 
 
 ### Content
   - [Prepare VPC and EC2](2.1-createec2/)
+
   - [Create IAM Role](2.2-createiamrole/)
