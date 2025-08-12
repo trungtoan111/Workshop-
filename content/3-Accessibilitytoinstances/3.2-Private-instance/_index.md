@@ -5,6 +5,7 @@ weight : 2
 chapter : false
 pre : " <b> 3.2. </b> "
 ---
+
 **Goal**  
 Enable **AWS Security Hub** and integrate it with **AWS Config** so compliance/control evaluations (FSBP, CIS, PCI DSS) surface as unified **findings**. Many Security Hub controls are implemented using **AWS Config managed rules**, so making sure both services are enabled and connected gives you a single view for alerts and evidence.
 
@@ -39,28 +40,24 @@ Enable **AWS Security Hub** and integrate it with **AWS Config** so compliance/c
 ```bash
 REGION=ap-southeast-1
 aws securityhub enable-security-hub --region "$REGION"
-B) Enable standards (FSBP / CIS / PCI DSS)
-Console
+```
 
-Security Hub → Standards → Enable standard.
+## B) Enable standards (FSBP / CIS / PCI DSS)
+**Console**
 
-Enable:
+1. Security Hub →**Standards** → **Enable standard**.
+2. Enable:
 
-AWS Foundational Security Best Practices (FSBP)
-
-CIS AWS Foundations Benchmark
-
-PCI DSS (if applicable)
+**AWS Foundational Security Best Practices (FSBP)**
+**CIS AWS Foundations Benchmark**
+**PCI DSS (if applicable)**
 
 📸 Upload later:
 
 /images/3-2-sh-standards.png (Standards enabled)
 
-CLI (discover ARNs, then enable)
-
-bash
-Sao chép
-Chỉnh sửa
+**CLI (discover ARNs, then enable)**
+```bash
 # Discover available standards and versions in your Region
 aws securityhub describe-standards --region "$REGION"
 
@@ -75,30 +72,28 @@ aws securityhub batch-enable-standards \
   StandardsArn="$FSBP_ARN" \
   StandardsArn="$CIS_ARN" \
   StandardsArn="$PCI_ARN"
-Note: SOC 2 / HIPAA are not native Security Hub standards. Map evidence with AWS Audit Manager or use AWS Config Conformance Packs if required.
+```
 
-C) Verify integration with AWS Config
-Console
+## C) Verify integration with AWS Config
+**Console**
 
-Security Hub → Integrations → AWS services.
+Security Hub → **Integrations** → **AWS services.**
 
-Find AWS Config → ensure it shows Enabled
+Find **AWS Config** → ensure it shows **Enabled**
 (Many Security Hub controls run on top of Config managed rules.)
 
 📸 Upload later:
 
 /images/3-2-sh-integrations.png (Integrations – AWS Config: Enabled)
 
-D) (Optional) Aggregate findings across Regions
-Console
+## D) (Optional) Aggregate findings across Regions
+**Console**
 
-Security Hub → Settings → Finding aggregation → Linking mode: All regions → Save.
+Security Hub → **Settings** → **Finding aggregation** → **Linking mode**: **All regions** → **Save**.
 
-CLI
+**CLI**
+```bash
 
-bash
-Sao chép
-Chỉnh sửa
 HOME_REGION="$REGION"   # choose a "home" Region for the rollup view
 aws securityhub create-finding-aggregator \
   --region "$HOME_REGION" \
@@ -106,13 +101,14 @@ aws securityhub create-finding-aggregator \
 📸 Upload later:
 
 /images/3-2-sh-aggregator.png (Finding aggregation enabled)
+```
 
-E) Validate controls & findings
-Console
+## E) Validate controls & findings
+**Console**
 
-Standards → Controls: status moves from Evaluating → Passed/Failed.
+**Standards → Controls:** status moves from Evaluating → Passed/Failed.
 
-Findings: check for ACTIVE findings.
+**Findings:** check for ACTIVE findings.
 
 📸 Upload later:
 
@@ -120,11 +116,8 @@ Findings: check for ACTIVE findings.
 
 /images/3-2-sh-findings.png (Findings list)
 
-CLI (quick checks)
-
-bash
-Sao chép
-Chỉnh sửa
+**CLI** (quick checks)
+```bash
 # List enabled standards
 aws securityhub get-enabled-standards --region "$REGION"
 
@@ -133,4 +126,4 @@ aws securityhub get-findings \
   --region "$REGION" \
   --filters '{"RecordState":[{"Comparison":"EQUALS","Value":"ACTIVE"}]}' \
   --max-results 5
-
+```
