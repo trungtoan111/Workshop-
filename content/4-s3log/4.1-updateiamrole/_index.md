@@ -6,30 +6,19 @@ chapter : false
 pre : " <b> 4.1 </b> "
 ---
 
-For our EC2 instances to be able to send session logs to the S3 bucket, we will need to update the IAM Role assigned to the EC2 instance by adding a policy that allows access to S3.
+Use the bucket you created earlier (e.g., `network-compliance-logs-<account>-<region>`) and organize prefixes:
 
-#### Update IAM Role
+- `cloudtrail-logs/` – CloudTrail management/data events  
+- `config-logs/` – AWS Config snapshots & configuration history  
+- `securityhub-findings/` *(optional)* – if you export findings via EventBridge→Firehose/Lambda  
+- `ssm-logs/` *(optional)* – Session Manager session logs
 
-1. Go to [IAM service management console](https://console.aws.amazon.com/iamv2/home?#/home)
-  + Click **Roles**.
-  + In the search box, enter **SSM**.
-  + Click on the **SSM-Role** role.
+**Bucket settings (recap)**
+- **Block Public Access:** ON (all 4)  
+- **Versioning:** Enabled  
+- **Default Encryption:** SSE-S3 or SSE-KMS (enable *Bucket Key* if KMS)
 
-![S3](/images/4.s3/002-s3.png)
+📸 Upload later:
+- `/images/4-1-s3-layout.png` *(Prefixes in the logs bucket)*
 
-2. Click **Attach policies**.
- 
-![S3](/images/4.s3/003-s3.png)
-
-3. In the Search box enter **S3**.
-  + Click the policy **AmazonS3FullAccess**.
-  + Click **Attach policy**.
- 
-![S3](/images/4.s3/004-s3.png)
- 
-{{%notice tip%}}
-In the production environment, we will grant stricter permissions to the specified S3 bucket. In the framework of this lab, we use the policy **AmazonS3FullAccess** for convenience.
-{{%/notice%}}
-
-
-Next, we will proceed to create an S3 bucket to store session logs.
+---
