@@ -6,43 +6,72 @@ chapter : false
 pre : " <b> 3.2.2.1 </b> "
 ---
 
-#### Enable SOC 2 Standard in AWS Security Hub
+#### Enable AWS Foundational Security Best Practices (FSBP)
 
-In this step, you will **enable the SOC 2 security standard** in AWS Security Hub and review key controls relevant to **Network Compliance and Audit Automation** (encryption, logging, and network restrictions). This ensures findings are centralized and mapped to your AWS Config rules.
+**Goal**  
+Enable **AWS Foundational Security Best Practices (FSBP)** in Security Hub so baseline controls are continuously evaluated and surfaced as **findings**.
 
----
-
-### Steps
-
-1. Open **AWS Security Hub** in the AWS Console.  
-   + Go to **Security standards**.  
-   + Click **SOC 2** → **Enable standard** for your target Region.
-
-![Enable SOC 2]({{ "images/3.2.2.1-soc2-enable.png" | relURL }})
-
-
-2. Review and (optionally) tune **SOC 2 controls** commonly used in this workshop:  
-   + **CloudTrail** enabled & **Log file validation** enabled.  
-   + **S3 encryption at rest** and **Block Public Access** enabled.  
-   + **EBS encryption by default**.  
-   + **VPC Flow Logs** enabled.  
-   + **Least-privilege IAM** (no root access keys, access key rotation).
-
-> Tip: These align with the AWS Config rules you added earlier (`cloud-trail-enabled`, `cloud-trail-log-file-validation-enabled`, `s3-bucket-server-side-encryption-enabled`, `ec2-ebs-encryption-by-default`, `vpc-flow-logs-enabled`, etc.).
-
-![Review SOC 2 Controls](/images/3.2.2.1-soc2-controls.png)
-
-3. Validate **SOC 2 findings** appear:  
-   + Open **Findings** in Security Hub.  
-   + Filter by **Standards = SOC 2** (and, if needed, **Product name = AWS Security Hub**).  
-   + Confirm new findings populate as controls evaluate.  
-   + Click a finding to see the **affected resource** and **remediation** guidance.
-
-![Validate SOC 2 Findings](/images/3.2.2.1-soc2-findings.png)
+> **Prerequisite:** You completed **3.2.1 Enable Security Hub**.
 
 ---
 
-**Outcome:** SOC 2 standard is enabled; related controls are evaluating and producing findings that you can use to drive **automated remediation** and **audit reporting** in later steps.
+## Console
+
+1. Open **Security Hub → Standards**.  
+2. Locate **AWS Foundational Security Best Practices (FSBP)** → click **Enable**.  
+3. Choose **Enable all controls** *(recommended)*, or **Customize** to disable controls that don’t apply.  
+4. Wait for evaluation to start (*status: Evaluating → Passed/Failed*). You’ll see findings appear shortly.
+
+📸 Upload later:
+- `/images/3-2-2-1-fsbp-list.png` *(FSBP in Standards list)*
+- `/images/3-2-2-1-fsbp-enable-dialog.png` *(Enable dialog)*
+- `/images/3-2-2-1-fsbp-controls.png` *(Controls view for FSBP)*
+
+> **Notes**
+> - Bật theo **Region**; lặp lại ở các Region bạn giám sát.  
+> - Nhiều control FSBP dựa trên **AWS Config managed rules**.  
+> - *(Khuyến nghị)* Trong **Security Hub → Settings → General**, bật **Auto-enable new controls** để tự động nhận các control mới trong tương lai.
+
+---
+
+## CLI
+
+```bash
+REGION=ap-southeast-1
+
+# 1) Discover available standards (and versions) in this Region
+aws securityhub describe-standards --region "$REGION"
+
+# 2) Set FSBP ARN from your Region's output (version may differ!)
+FSBP_ARN="arn:aws:securityhub:${REGION}::standards/aws-foundational-security-best-practices/v/1.0.0"
+
+# 3) Enable FSBP
+aws securityhub batch-enable-standards \
+  --region "$REGION" \
+  --standards-subscription-requests StandardsArn="$FSBP_ARN"
+
+# 4) List your enabled standards to confirm
+aws securityhub get-enabled-standards --region "$REGION"
+
+# 5) (Optional) List controls under FSBP
+SUB_ARN=$(aws securityhub get-enabled-standards --region "$REGION" \
+  --query 'StandardsSubscriptions[?StandardsArn==`'"$FSBP_ARN"'`].StandardsSubscriptionArn' \
+  --output text)
+
+aws securityhub describe-standards-controls \
+  --region "$REGION" \
+  --standards-subscription-arn "$SUB_ARN" \
+  --max-results 50
+
+# 6) (Optional) Disable a specific control if not applicable
+#    Replace CONTROL_ID with an ID from step 5 (e.g., "IAM.1", "S3.4", etc.)
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+aws securityhub update-standards-control \
+  --region "$REGION" \
+  --standards-control-arn "arn:aws:securityhub:${REGION}:${ACCOUNT_ID}:control/aws-foundational-security-best-practices/v/1.0.0/CONTROL_ID" \
+  --control-status "DISABLED" \
+  --disabled-reason "Not applicable to this environment"
+```
 
 
 
