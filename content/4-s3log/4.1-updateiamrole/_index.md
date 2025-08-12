@@ -1,5 +1,5 @@
 ---
-title : "Update IAM Role"
+title : "Store Audit Logs in Amazon S3"
 date : "`r Sys.Date()`"
 weight : 1
 chapter : false
@@ -30,5 +30,6 @@ For our EC2 instances to be able to send session logs to the S3 bucket, we will 
 {{%notice tip%}}
 In the production environment, we will grant stricter permissions to the specified S3 bucket. In the framework of this lab, we use the policy **AmazonS3FullAccess** for convenience.
 {{%/notice%}}
+
 
 Next, we will proceed to create an S3 bucket to store session logs.
