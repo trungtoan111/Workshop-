@@ -18,11 +18,12 @@ chapter : false
 
 ### Content
  1. [Introduction ](1-introduce/)
- 2. [Preparation](2-prerequiste/)
- 3. [Connect to EC2 instance](3-accessibilitytoinstances/)
- 4. [Manage session logs](4-s3log/)
- 5. [Port Forwarding](5-Portfwd/)
+ 2. [Configure Monitoring Environment](2-Monitoring-Setup/)
+ 3. [Connect and Collect Compliance Data](3-Data-Collection/)
+ 4. [Manage and Analyze Audit Logs](4-Audit-Logs/)
+ 5. [Execute Auto-Remediation](5-Auto-Remediation/)
  6. [Clean up resources](6-cleanup/)
+
 
 
 
