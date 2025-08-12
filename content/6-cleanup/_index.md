@@ -6,78 +6,92 @@ chapter = false
 pre = "<b>6. </b>"
 +++
 
-We will take the following steps to delete the resources we created in this exercise.
+**Goal**  
+Remove resources created for the lab to avoid ongoing charges. Keep any evidence/logs you need for audit.
 
-#### Delete EC2 instance
+> **Warning**  
+> Don’t delete logs you intend to keep. If in doubt, **archive** to Glacier instead of deleting.
 
-1. Go to [EC2 service management console](https://console.aws.amazon.com/ec2/v2/home)
-   + Click **Instances**.
-   + Select both **Public Linux Instance** and **Private Windows Instance** instances.
-   + Click **Instance state**.
-   + Click **Terminate instance**, then click **Terminate** to confirm.
+---
 
-2. Go to [IAM service management console](https://console.aws.amazon.com/iamv2/home#/home)
-   + Click **Roles**.
-   + In the search box, enter **SSM**.
-   + Click to select **SSM-Role**.
-   + Click **Delete**, then enter the role name **SSM-Role** and click **Delete** to delete the role.
+## 6.1 Disable automations and delete functions
 
-![Clean](/images/6.clean/001-clean.png)
+**Console**
+- **EventBridge**: disable/delete rules you created for auto-remediation.  
+- **Lambda**: delete remediation functions.
 
-3. Click **Users**.
-   + Click on user **Portfwd**.
-   + Click **Delete**, then enter the user name **Portfwd** and click **Delete** to delete the user.
+**CLI (example)**
+```bash
+REGION=ap-southeast-1
+RULE_NAME=auto-remediate-s3-encryption
+LAMBDA_FN=auto-remediate-s3
 
-#### Delete S3 bucket
+aws events remove-targets --region "$REGION" --rule "$RULE_NAME" --ids "0"
+aws events delete-rule   --region "$REGION" --name "$RULE_NAME"
+aws lambda delete-function --region "$REGION" --function-name "$LAMBDA_FN"
+```
 
-1. Access [System Manager - Session Manager service management console](https://console.aws.amazon.com/systems-manager/session-manager).
-   + Click the **Preferences** tab.
-   + Click **Edit**.
-   + Scroll down.
-   + In the section **S3 logging**.
-   + Uncheck **Enable** to disable logging.
-   + Scroll down.
-   + Click **Save**.
+## 6.2 Remove Config remediation (if configured)
+**Console**: AWS Config → **Rules** → select rule → **Remediation** → **Edit** → disable/delete configuration.
 
-2. Go to [S3 service management console](https://s3.console.aws.amazon.com/s3/home)
-   + Click on the S3 bucket we created for this lab. (Example: lab-fcj-bucket-0001 )
-   + Click **Empty**.
-   + Enter **permanently delete**, then click **Empty** to proceed to delete the object in the bucket.
-   + Click **Exit**.
+CLI
 
-3. After deleting all objects in the bucket, click **Delete**
+```bash
 
-![Clean](/images/6.clean/002-clean.png)
+aws configservice delete-remediation-configuration \
+  --region "$REGION" \
+  --config-rule-name "S3_BUCKET_SERVER_SIDE_ENCRYPTION_ENABLED"
+```
 
-4. Enter the name of the S3 bucket, then click **Delete bucket** to proceed with deleting the S3 bucket.
+## 6.3 Disable Security Hub (optional for lab)
+```bash
 
-![Clean](/images/6.clean/003-clean.png)
+aws securityhub disable-security-hub --region "$REGION"
+```
+(If using multi-account/aggregation, disable from the delegated/admin account first.)
 
-#### Delete VPC Endpoints
 
-1. Go to [VPC service management console](https://console.aws.amazon.com/vpc/home)
-   + Click **Endpoints**.
-   + Select the 4 endpoints we created for the lab including **SSM**, **SSMMESSAGES**, **EC2MESSAGES**, **S3GW**.
-   + Click **Actions**.
-   + Click **Delete VPC endpoints**.
+# 6.4 Stop and delete CloudTrail (lab trail)
+```bash
 
-![Clean](/images/6.clean/004-clean.png)
+TRAIL="network-compliance-trail"
+aws cloudtrail stop-logging --name "$TRAIL" --region "$REGION"
+aws cloudtrail delete-trail  --name "$TRAIL" --region "$REGION"
+```
 
-2. In the confirm box, enter **delete**.
-   + Click **Delete** to proceed with deleting endpoints.
+## 6.5 Empty and delete the logs bucket (optional!)
+Only do this if you don’t need the audit evidence.
 
-3. Click the refresh icon, check that all endpoints have been deleted before proceeding to the next step.
+```bash
 
-![Clean](/images/6.clean/005-clean.png)
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+BUCKET="network-compliance-logs-$ACCOUNT_ID-$REGION"
 
-#### Delete VPC
+# Purge all versions (if versioning is enabled)
+aws s3api delete-objects --bucket "$BUCKET" --delete \
+  "$(aws s3api list-object-versions --bucket "$BUCKET" \
+  --query='{Objects: Versions[].{Key:Key,VersionId:VersionId}}' --output=json)" || true
+aws s3api delete-objects --bucket "$BUCKET" --delete \
+  "$(aws s3api list-object-versions --bucket "$BUCKET" \
+  --query='{Objects: DeleteMarkers[].{Key:Key,VersionId:VersionId}}' --output=json)" || true
 
-1. Go to [VPC service management console](https://console.aws.amazon.com/vpc/home)
-   + Click **Your VPCs**.
-   + Click on **Lab VPC**.
-   + Click **Actions**.
-   + Click **Delete VPC**.
+# Delete the bucket
+aws s3api delete-bucket --bucket "$BUCKET" --region "$REGION"
+```
 
-2. In the confirm box, enter **delete** to confirm, click **Delete** to delete **Lab VPC** and related resources.
+# 6.6 Remove IAM roles/policies used for the lab
+Detach and delete policies you created for:
 
-![Clean](/images/6.clean/006-clean.png)
+**ConfigRemediationAutomationRole** (SSM Automation)
+
+**Lambda execution** role(s)
+
+Then delete the roles themselves.
+
+# 6.7 (Optional) Delete Glue/Athena/QuickSight artifacts
+**Glue:** delete Crawlers, Database, and Tables created for the lab.
+
+**Athena:** clear query results in the S3 athena-results/ prefix if desired.
+
+**QuickSight:** delete datasets/dashboards; remove S3/Athena/Glue permissions.
+
