@@ -1,7 +1,10 @@
-| title                                   | date            | weight | chapter | pre          |
-|-----------------------------------------|-----------------|--------|---------|--------------|
-| Verify AWS Config & Rules Status        | `r Sys.Date()`  | 1      | false   | <b> 2.1 </b> |
-
+---
+title : "Verify AWS Config & Rules Status "
+date : "`r Sys.Date()`"
+weight : 1
+chapter : false
+pre : " <b> 2.1 </b> "
+---
 In this step, you will verify and baseline **AWS Config** so network resources are **continuously recorded**, **evaluated** against **managed rules / conformance packs**, and **auto-remediated** where possible. This is the foundation for **Network Compliance & Audit Automation**.
 
 You will:
@@ -25,3 +28,4 @@ Tip: Use **least privilege** for the Config delivery bucket/KMS, and tag all rul
 - [Set Auto-Remediation with SSM Automation](2.1.5-auto-remediation-ssm/)
 - [Configure Config Aggregator (Optional)](2.1.6-config-aggregator/)
 - [Notifications & Reporting (EventBridge/SNS)](2.1.7-notifications-reporting/)
+
