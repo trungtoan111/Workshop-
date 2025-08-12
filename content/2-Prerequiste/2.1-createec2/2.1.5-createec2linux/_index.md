@@ -1,5 +1,5 @@
 ---
-title : "Create Public instance"
+title : "Enable AWS Security Hub"
 date : "`r Sys.Date()`"
 weight : 5
 chapter : false
@@ -62,5 +62,6 @@ pre : " <b> 2.1.5 </b> "
   + Click **Save**.
 
 ![EC2](/images/2.prerequisite/033-createec2.png)
+
 
 Next, we will do the same to create an EC2 Instance Windows running in the Private subnet.
