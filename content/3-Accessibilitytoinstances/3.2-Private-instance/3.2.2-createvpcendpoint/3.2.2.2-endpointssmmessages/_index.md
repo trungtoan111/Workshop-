@@ -1,5 +1,5 @@
 ---
-title : "Create Endpoint ssmmessages"
+title : "PCI-DSS"
 date : "`r Sys.Date()`"
 weight : 2
 chapter : false
@@ -34,5 +34,6 @@ pre : " <b> 3.2.2.2 </b> "
 
 5. Scroll down.
   + Click **Create endpoint**.
+
 
 6. We have created the VPC Interface Endpoint **SSMMESSAGES**.
