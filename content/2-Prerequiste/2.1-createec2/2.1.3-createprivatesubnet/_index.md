@@ -1,56 +1,209 @@
 ---
-title : "Create AWS Config Rules"
-date : "`r Sys.Date()`"
-weight : 3
+title   : "Create AWS Config Rules"
+date    : "`r Sys.Date()`"
+weight  : 3
 chapter : false
-pre : " <b> 2.1.3 </b> "
+pre     : " <b> 2.1.3 </b> "
 ---
 
-#### Create AWS Config Rules
-In this step, you will add AWS Managed Rules to evaluate your AWS resources against compliance requirements. These rules are pre-built by AWS and allow you to check for common security, logging, and encryption best practices without writing custom code.
+**Goal**  
+Add **AWS Config managed rules** to continuously evaluate your **network/security posture** (and feed Security Hub controls). Start with high-value rules, then expand as needed.
 
-Steps:
+> **Prerequisites**
+> - **AWS Config** is enabled and recording (2.1.2).
+> - **S3 audit bucket** exists for snapshots/evaluations (2.1.1).
 
-In the AWS Management Console, go to AWS Config → Rules.
+---
 
-Click Add rule.
+## Recommended managed rules (network-focused)
 
-Select AWS managed rules from the rule type options.
+Begin with these (you can add more later):
 
-In the search bar, type each of the following rule names exactly and add them to your environment:
+- **S3_BUCKET_SERVER_SIDE_ENCRYPTION_ENABLED** – default encryption on S3 buckets  
+- **S3_BUCKET_PUBLIC_READ_PROHIBITED** / **S3_BUCKET_PUBLIC_WRITE_PROHIBITED** – block public buckets  
+- **S3_BUCKET_SSL_REQUESTS_ONLY** – require HTTPS  
+- **RESTRICTED_SSH** – no 0.0.0.0/0 on port 22  
+- **RESTRICTED_INCOMING_TRAFFIC** (or **RESTRICTED_COMMON_PORTS**) – common risky ports not open  
+- **VPC_FLOW_LOGS_ENABLED** – VPC/Subnet/ENI flow logs must be enabled  
+- **EIP_ATTACHED** – ensure Elastic IPs are attached  
+- **ELBV2_ALB_HTTP_TO_HTTPS_REDIRECTION_CHECK** – redirect ALB HTTP → HTTPS  
+- **ELB_TLS_SECURITY_POLICY_CHECK** – load balancer uses modern TLS policy
 
-Security & Network
+> Names above are **managed rule identifiers** you can select in Console. For CLI, use the **SourceIdentifier** shown.
 
-restricted-ssh — Checks whether security groups disallow unrestricted incoming SSH traffic (port 22).
+📸 Upload later:
+- `/images/2-1-3-rules-list.png` *(Rules list with status)*
+- `/images/2-1-3-rule-create.png` *(Add managed rule dialog)*
+- `/images/2-1-3-rule-details.png` *(Rule details & parameters)*
 
-vpc-flow-logs-enabled — Ensures VPC Flow Logs are enabled for all VPCs.
+---
 
-eip-attached — Checks whether all Elastic IPs are attached to an instance or network interface.
+## A) Create rules (Console)
 
-Logging & Monitoring
+1. Open **AWS Config → Rules → Add rule**.  
+2. Search each rule name above (e.g., **RESTRICTED_SSH**).  
+3. For rules with **parameters** (e.g., authorized ports, specific VPC IDs), set them to match your environment.  
+4. Click **Next → Add rule**. Repeat for all.
 
-cloud-trail-enabled — Ensures at least one CloudTrail is enabled in your account.
+> **Tip:** Tag rules with `Compliance=Network` so you can slice reports later.
 
-cloud-trail-log-file-validation-enabled — Ensures log file validation is enabled on all CloudTrail trails.
+---
 
-multi-region-cloudtrail-enabled — Ensures CloudTrail is enabled in all regions.
+## B) Create rules (CLI – examples)
 
-Encryption & Data Protection
+```bash
+REGION="ap-southeast-1"
 
-s3-bucket-server-side-encryption-enabled — Ensures all S3 buckets have encryption at rest enabled.
+# 1) S3 default encryption
+aws configservice put-config-rule --region "$REGION" --config-rule '{
+  "ConfigRuleName": "s3-bucket-encryption-required",
+  "Description": "All S3 buckets must have default encryption enabled.",
+  "Scope": { "ComplianceResourceTypes": ["AWS::S3::Bucket"] },
+  "Source": {
+    "Owner": "AWS",
+    "SourceIdentifier": "S3_BUCKET_SERVER_SIDE_ENCRYPTION_ENABLED"
+  }
+}'
 
-ec2-ebs-encryption-by-default — Ensures EBS volume encryption is enabled by default.
+# 2) SSH not open to the world
+aws configservice put-config-rule --region "$REGION" --config-rule '{
+  "ConfigRuleName": "restricted-ssh",
+  "Description": "Disallow 0.0.0.0/0 on port 22.",
+  "Source": {
+    "Owner": "AWS",
+    "SourceIdentifier": "RESTRICTED_SSH"
+  }
+}'
 
-rds-storage-encrypted — Ensures all RDS instances are encrypted.
+# 3) VPC Flow Logs enabled
+aws configservice put-config-rule --region "$REGION" --config-rule '{
+  "ConfigRuleName": "vpc-flow-logs-enabled",
+  "Description": "VPC/Subnet/ENI must have Flow Logs enabled.",
+  "Source": {
+    "Owner": "AWS",
+    "SourceIdentifier": "VPC_FLOW_LOGS_ENABLED"
+  }
+}'
 
-Leave parameters as default unless your compliance requirements specify otherwise.
+# 4) ALB must redirect HTTP->HTTPS (ELBv2)
+aws configservice put-config-rule --region "$REGION" --config-rule '{
+  "ConfigRuleName": "alb-http-to-https-redirect",
+  "Description": "ALB listeners should redirect HTTP to HTTPS.",
+  "Source": {
+    "Owner": "AWS",
+    "SourceIdentifier": "ELBV2_ALB_HTTP_TO_HTTPS_REDIRECTION_CHECK"
+  }
+}'
+```
 
-Click Add rule to save them.
+Note: If a rule needs parameters (e.g., allowed ports, target VPCs), add "InputParameters": "{\"paramName\":\"value\"}" to the JSON.
 
-Return to the Rules list to verify they are in an Active state.
+## C) (Optional) Deploy a Network Baseline Conformance Pack
+Use a single YAML to deploy a bundle of rules consistently across accounts/Regions.
 
-![VPC](/images/2.prerequisite/018-createsubnet.png)
+**Console**
 
+**AWS Config → Conformance packs → Deploy conformance pack**
 
+Paste the YAML below → name it network-baseline-pack → Deploy
 
+**YAML (sample)**
+```yaml
+Parameters:
+  AllowedSshCidr:
+    Type: String
+    Default: "10.0.0.0/8"
+  RequireHttpsOnly:
+    Type: String
+    Default: "true"
 
+Resources:
+  S3Encryption:
+    Type: "AWS::Config::ConfigRule"
+    Properties:
+      ConfigRuleName: "s3-bucket-encryption-required"
+      Source:
+        Owner: "AWS"
+        SourceIdentifier: "S3_BUCKET_SERVER_SIDE_ENCRYPTION_ENABLED"
+
+  S3PublicReadProhibited:
+    Type: "AWS::Config::ConfigRule"
+    Properties:
+      ConfigRuleName: "s3-public-read-prohibited"
+      Source:
+        Owner: "AWS"
+        SourceIdentifier: "S3_BUCKET_PUBLIC_READ_PROHIBITED"
+
+  S3PublicWriteProhibited:
+    Type: "AWS::Config::ConfigRule"
+    Properties:
+      ConfigRuleName: "s3-public-write-prohibited"
+      Source:
+        Owner: "AWS"
+        SourceIdentifier: "S3_BUCKET_PUBLIC_WRITE_PROHIBITED"
+
+  S3HttpsOnly:
+    Type: "AWS::Config::ConfigRule"
+    Properties:
+      ConfigRuleName: "s3-https-only"
+      Source:
+        Owner: "AWS"
+        SourceIdentifier: "S3_BUCKET_SSL_REQUESTS_ONLY"
+
+  RestrictedSsh:
+    Type: "AWS::Config::ConfigRule"
+    Properties:
+      ConfigRuleName: "restricted-ssh"
+      Source:
+        Owner: "AWS"
+        SourceIdentifier: "RESTRICTED_SSH"
+
+  VpcFlowLogsEnabled:
+    Type: "AWS::Config::ConfigRule"
+    Properties:
+      ConfigRuleName: "vpc-flow-logs-enabled"
+      Source:
+        Owner: "AWS"
+        SourceIdentifier: "VPC_FLOW_LOGS_ENABLED"
+
+  ElbTlsPolicy:
+    Type: "AWS::Config::ConfigRule"
+    Properties:
+      ConfigRuleName: "elb-tls-policy-check"
+      Source:
+        Owner: "AWS"
+        SourceIdentifier: "ELB_TLS_SECURITY_POLICY_CHECK"
+
+  AlbHttpToHttps:
+    Type: "AWS::Config::ConfigRule"
+    Properties:
+      ConfigRuleName: "alb-http-to-https-redirect"
+      Source:
+        Owner: "AWS"
+        SourceIdentifier: "ELBV2_ALB_HTTP_TO_HTTPS_REDIRECTION_CHECK"
+```
+📸 Upload later:
+
+/images/2-1-3-pack-deploy.png (Deploy conformance pack)
+
+/images/2-1-3-pack-compliance.png (Pack compliance summary)
+
+## D) Validate
+**AWS Config → Rules:** statuses move from Evaluating → Compliant/Noncompliant.
+
+**Evaluations in S3:** objects appear under config-logs/AWSLogs/<ACCOUNT_ID>/Config/<region>/.
+
+If Security Hub standards are on (3.2.2), related controls will surface findings.
+
+📸 Upload later:
+
+/images/2-1-3-rule-compliance.png (Rule compliance view)
+
+/images/2-1-3-s3-evaluations.png (S3 keys for evaluations)
+
+## E) Good practices
+Start detect-only, then enable auto-remediation (Section 5) for rules you trust.
+
+Tag rules with Compliance=Network, Owner=<team>; use this in reports and filters.
+
+In multi-account setups, deploy via Conformance Packs or IaC (CloudFormation/Terraform) for consistency.
