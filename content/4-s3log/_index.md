@@ -1,5 +1,5 @@
 ---
-title : "Manage session logs"
+title : "Manage and Analyze Audit Logs"
 date : "`r Sys.Date()`"
 weight : 4
 chapter : false
@@ -20,4 +20,5 @@ In this section, we will proceed to create an S3 bucket and configure the sessio
    - [Update IAM Role](./4.1-updateiamrole/)
    - [Create **S3 Bucket**](./4.2-creates3bucket/)
    - [Create S3 Gateway endpoint](./4.3-creategwes3)
+
    - [Configure **Session logs**](./4.4-configsessionlogs/)
