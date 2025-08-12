@@ -1,5 +1,5 @@
 ---
-title : "Create Endpoint ssm"
+title : "SOC 2"
 date : "`r Sys.Date()`"
 weight : 1
 chapter : false
@@ -40,6 +40,7 @@ pre : " <b> 3.2.2.1 </b> "
   + Click **Create endpoint**.
 
 6. We have created the VPC Interface Endpoint for **SSM**.
+
 
 
 ![Connect](/images/3.connect/011-connect.png)
