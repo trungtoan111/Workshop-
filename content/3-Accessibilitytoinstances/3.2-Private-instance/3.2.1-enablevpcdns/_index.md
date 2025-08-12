@@ -6,27 +6,24 @@ chapter : false
 pre : " <b> 3.2.1 </b> "
 ---
 
-#### Enable DNS Hostnames on VPC
+#### Enable AWS Security Hub
 
-> **Goal:** Enable **DNS hostnames** on your VPC to allow private service endpoints and compliance service integrations.
+1. Mở **AWS Security Hub** trong AWS Console.  
+   + Nhấn **Enable Security Hub** cho Region bạn đang làm lab.  
+   + (Khuyến nghị) Bật **Auto-enable new controls**.
 
-1. **Open VPC Service**
-   + Go to [VPC console](https://console.aws.amazon.com/vpc/home).
-   + Click **Your VPCs** in the left panel.
-   + Select your **Lab VPC** (created in the prerequisite step).
-   + Click **Actions** → **Edit DNS hostnames**.
+![Enable Security Hub](/images/3.connect/sh-enable-service.png)
 
-   📸 *Upload screenshot here:*  
-   `![VPC Console – Your VPCs](/images/3.connect/your-vpcs.png)`
+2. Bật các **Security standards** cần thiết cho lab (có thể chọn nhiều):  
+   + **SOC 2** – kiểm soát về logging, encryption, IAM.  
+   + **PCI-DSS** – các kiểm soát về segmentation, firewall rules, access logging.  
+   + **HIPAA** – yêu cầu mã hóa in-transit & at-rest, audit logging chi tiết.
 
-2. **Enable DNS Hostnames**
-   + On the **Edit DNS hostnames** page:
-     - Select **Enable**.
-     - Click **Save changes**.
+![Enable Standards](/images/3.connect/sh-enable-standards.png)
 
-   📸 *Upload screenshot here:*  
-   `![Enable DNS Hostnames](/images/3.connect/enable-dns-hostnames.png)`
+3. Tích hợp **Security Hub** với **AWS Config** để gom findings về một nơi:  
+   + Vào **Security Hub → Settings → Integrations → AWS services**.  
+   + Tìm **AWS Config** và bấm **Enable integration**.  
+   + Mở **Findings** và lọc theo `Product name = AWS Config` để xác minh dữ liệu đã đổ về.
 
----
-
-✅ **Tip:** This setting is required so AWS-managed private endpoints (e.g., Config, Security Hub) can resolve internal service names inside your VPC.
+![Integrate with AWS Config](/images/3.connect/sh-config-integration.png)
