@@ -1,4 +1,4 @@
-<img width="1907" height="924" alt="image" src="https://github.com/user-attachments/assets/1c2d14a5-e29e-4d93-ad34-2f5c54ef5152" /><img width="1907" height="924" alt="image" src="https://github.com/user-attachments/assets/6cba61d0-661f-4816-b08f-4fefa9c3671f" />---
+---
 title : "Integrate Security Hub with AWS Config"
 date : "`r Sys.Date()`"
 weight : 2
@@ -133,3 +133,4 @@ aws securityhub get-findings \
   --region "$REGION" \
   --filters '{"RecordState":[{"Comparison":"EQUALS","Value":"ACTIVE"}]}' \
   --max-results 5
+
