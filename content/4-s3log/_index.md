@@ -8,130 +8,72 @@ pre : " <b> 4. </b> "
 
 
 **Goal**  
-Capture and monitor **AWS Systems Manager Session Manager** activity for private EC2 instances. You will enable **logging to S3/CloudWatch Logs**, then query activity using **CloudWatch Logs Insights** and **Athena (CloudTrail)** for audit and forensics.
+Centralize and analyze **audit & compliance logs** from **CloudTrail** and **AWS Config** in **Amazon S3**, query them with **Athena**, and prepare datasets for **QuickSight** dashboards.
 
-> **Prerequisites**
-> - Logs bucket from Section 2 (e.g., `network-compliance-logs-<account>-<region>`).  
-> - VPC Interface Endpoints created: `ssm`, `ssmmessages`, `ec2messages`.  
-> - Instances have **SSM Agent** and the IAM role **AmazonSSMManagedInstanceCore**.  
-> - Endpoint Security Group allows **TCP 443** from your private subnets/VPC CIDR.  
-> - VPC **DNS resolution/hostnames** enabled; **Private DNS** enabled on endpoints.
+**By the end you will**
+- Store logs in a secure, versioned **S3** bucket (from Section 2).  
+- Enable **CloudTrail (multi-Region + validation)** to capture all API activity.  
+- Catalog log data with **AWS Glue** and query with **Amazon Athena**.  
+- (Optional) Prepare **QuickSight** datasets and enable **Session Manager** session logging for audit evidence.
+
+### Architecture
+![Logs architecture – S3 + CloudTrail + Config + Athena]( /images/4-arch-logs.png )
 
 ---
 
-## Enable Session Logging (Preferences)
+## 4.1 Store Audit Logs in Amazon S3
 
-**Console**
-1. **Systems Manager → Session Manager → Preferences → Edit**  
-2. **S3**: set `s3://network-compliance-logs-<account>-<region>/ssm-logs/`  
-   - *(Optional)* choose a **KMS key** for encryption  
-3. **CloudWatch Logs**: enable and choose a log group (e.g., `/ssm/sessions`)  
-4. *(Recommended)* set **Idle timeout** (e.g., 20m) and **Max session duration** (e.g., 60m)  
-5. **Save**
+Use the bucket you created earlier (e.g., `network-compliance-logs-<account>-<region>`) and organize prefixes:
+
+- `cloudtrail-logs/` – CloudTrail management/data events  
+- `config-logs/` – AWS Config snapshots & configuration history  
+- `securityhub-findings/` *(optional)* – if you export findings via EventBridge→Firehose/Lambda  
+- `ssm-logs/` *(optional)* – Session Manager session logs
+
+**Bucket settings (recap)**
+- **Block Public Access:** ON (all 4)  
+- **Versioning:** Enabled  
+- **Default Encryption:** SSE-S3 or SSE-KMS (enable *Bucket Key* if KMS)
 
 📸 Upload later:
-- `/images/4-4-ssm-logging-prefs.png` *(Preferences with S3 + CW Logs)*  
-- `/images/4-4-ssm-logs-s3.png` *(S3 prefix `/ssm-logs/` populated)*  
-- `/images/4-4-ssm-logs-cw.png` *(CloudWatch log group `/ssm/sessions`)*
+- `/images/4-1-s3-layout.png` *(Prefixes in the logs bucket)*
 
-> **If S3 uploads fail with AccessDenied**, add a bucket policy to allow `ssm.amazonaws.com` to `PutObject` under `ssm-logs/*` (and set `x-amz-acl: bucket-owner-full-control`):
+---
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [{
-    "Sid": "AllowSSMToWriteSessionLogs",
-    "Effect": "Allow",
-    "Principal": { "Service": "ssm.amazonaws.com" },
-    "Action": "s3:PutObject",
-    "Resource": "arn:aws:s3:::NETWORK_COMPLIANCE_BUCKET/ssm-logs/*",
-    "Condition": { "StringEquals": { "s3:x-amz-acl": "bucket-owner-full-control" } }
-  }]
-}
-```
-## Monitor with CloudWatch Logs Insights (live/search)
-Open **CloudWatch → Logs Insights**, select the group /ssm/sessions, then run queries:
+## 4.2 Enable AWS CloudTrail for Full Logging
 
-## A) List recent sessions
+**Console**
+1. Open **CloudTrail → Trails → Create trail**  
+2. **Name:** `network-compliance-trail`  
+3. **Storage location:** your logs bucket → prefix `cloudtrail-logs/`  
+4. **Apply trail to all Regions:** **Yes** (multi-Region)  
+5. **Log file validation:** **Enabled**  
+6. **Event type:** Management events = **Read/Write**  
+7. *(Optional)* **Data events** – start with S3 buckets that contain sensitive data and **Lambda** functions handling prod traffic.  
+8. **Create trail**
 
-sql
+📸 Upload later:
+- `/images/4-2-cloudtrail-create.png` *(Create trail – settings)*
+- `/images/4-2-event-selectors.png` *(Data events selectors)*
 
-fields @timestamp, @logStream
-| sort @timestamp desc
-| limit 50
-
-## B) Search sensitive commands (Linux)
-
-sql
-
-fields @timestamp, @message
-| filter @message like /sudo|passwd|useradd|iptables|ssh|fail|denied|permission/i
-| sort @timestamp desc
-| limit 200
-
-## C) Windows PowerShell risky patterns
-
-sql
-fields @timestamp, @message
-| filter @message like /Add-LocalUser|Set-LocalUser|New-NetFirewallRule|RDP|Enable-PSRemoting/i
-| sort @timestamp desc
-| limit 200
-
-## Audit with CloudTrail (who started/ended sessions) via Athena
-
-All StartSession/TerminateSession API calls are in CloudTrail. Use Athena (CloudTrail table from 4.3):
-
-## A) Session opens & closes
-
-sql
-
-SELECT
-  from_iso8601_timestamp(eventtime) AS event_time,
-  useridentity.arn                  AS actor,
-  eventname,
-  requestparameters.target          AS instance_id,
-  requestparameters.documentName    AS document,
-  sourceipaddress                   AS source_ip
-FROM compliance_logs.<your_cloudtrail_table>
-WHERE eventsource = 'ssm.amazonaws.com'
-  AND eventname IN ('StartSession','TerminateSession')
-  AND from_iso8601_timestamp(eventtime) >= date_add('day', -7, current_timestamp)
-ORDER BY event_time DESC;
-
-## B) Port-forwarding sessions (RDP/SSH tunneling)
-
-sql
-
-SELECT
-  from_iso8601_timestamp(eventtime) AS event_time,
-  useridentity.arn                  AS actor,
-  requestparameters.documentName    AS document,
-  requestparameters.parameters      AS params
-FROM compliance_logs.<your_cloudtrail_table>
-WHERE eventsource = 'ssm.amazonaws.com'
-  AND eventname   = 'StartSession'
-  AND requestparameters.documentName = 'AWS-StartPortForwardingSession'
-ORDER BY event_time DESC;
-
-## CLI quick checks
-**List active sessions**
-
+**CLI**
 ```bash
-
 REGION=ap-southeast-1
-aws ssm describe-sessions --region "$REGION" --state Active --max-results 50
-```
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+BUCKET="network-compliance-logs-$ACCOUNT_ID-$REGION"
+TRAIL="network-compliance-trail"
 
-**List recent sessions (history)**
+# Create a multi-Region trail with log file validation
+aws cloudtrail create-trail \
+  --name "$TRAIL" \
+  --s3-bucket-name "$BUCKET" \
+  --s3-key-prefix "cloudtrail-logs" \
+  --is-multi-region-trail \
+  --include-global-service-events \
+  --enable-log-file-validation
 
-```bash
+# Start logging
+aws cloudtrail start-logging --name "$TRAIL"
 
-aws ssm describe-sessions --region "$REGION" --state History --max-results 50
-```
-## Get a specific session’s details
-
-```bash
-
-SESSION_ID=<your-session-id>
-aws ssm get-session --region "$REGION" --session-id "$SESSION_ID"
-```
+# Quick check
+aws cloudtrail get-trail-status --name "$TRAIL"
