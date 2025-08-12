@@ -7,20 +7,17 @@ pre : " <b> 4. </b> "
 ---
 
 
-With Session Manager, we can view the history of connections to instances through **Session history**. However, we have not seen the details of the commands used in a session.
+**Goal**  
+Centralize and analyze **audit & compliance logs** from **CloudTrail** and **AWS Config** in **Amazon S3**, query them with **Athena**, and prepare datasets for **QuickSight** dashboards.
 
-![S3](/images/4.s3/001-s3.png)
+**By the end you will**
+- Store logs in a secure, versioned **S3** bucket (from Section 2).  
+- Enable **CloudTrail (multi-Region + validation)** to capture all API activity.  
+- Catalog log data with **AWS Glue** and query with **Amazon Athena**.  
+- (Optional) Prepare **QuickSight** datasets and enable **Session Manager** session logging for audit evidence.
 
-In this section, we will proceed to create an S3 bucket and configure the session logs feature to see the details of the commands used in the session.
+### Architecture
+![Logs architecture – S3 + CloudTrail + Config + Athena]( /images/4-arch-logs.png )
 
-![port-fwd](/images/arc-log.png) 
-
-### Content:
-
-   - [Update IAM Role](./4.1-updateiamrole/)
-   - [Create **S3 Bucket**](./4.2-creates3bucket/)
-   - [Create S3 Gateway endpoint](./4.3-creategwes3)
-
-   - [Configure **Session logs**](./4.4-configsessionlogs/)
 
 
