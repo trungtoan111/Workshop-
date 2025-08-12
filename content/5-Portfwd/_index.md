@@ -48,8 +48,9 @@ This role performs the actual changes during remediation.
     { "Effect":"Allow","Action":["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents"],"Resource":"*" }
   ]
 }
-Attach this policy to a role (e.g., ConfigRemediationAutomationRole) that SSM can assume.
+
 ```
+Attach this policy to a role (e.g., ConfigRemediationAutomationRole) that SSM can assume.
 
 ## B) Associate a remediation to a Config rule
 Example: for **S3 bucket encryption** (rule: S3_BUCKET_SERVER_SIDE_ENCRYPTION_ENABLED) use the managed runbook AWS-ConfigureS3BucketEncryption.
@@ -105,8 +106,7 @@ Use when you need custom logic beyond the managed runbooks.
 
 ## A) Event pattern (Config non-compliant)
 ```json
-Sao chép
-Chỉnh sửa
+
 {
   "source": ["aws.config"],
   "detail-type": ["Config Rules Compliance Change"],
@@ -193,3 +193,4 @@ CloudTrail logs the change; Security Hub updates findings.
 /images/5-5-test-before.png (Bucket w/o encryption)
 
 /images/5-5-test-after.png (Encryption enforced + rule compliant)
+
