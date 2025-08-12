@@ -8,22 +8,32 @@ pre : " <b> 3.2.1 </b> "
 
 #### Enable AWS Security Hub
 
-1. Mở **AWS Security Hub** trong AWS Console.  
-   + Nhấn **Enable Security Hub** cho Region bạn đang làm lab.  
-   + (Khuyến nghị) Bật **Auto-enable new controls**.
+**Goal**  
+Turn on **AWS Security Hub** in the target Region so security controls and compliance checks can generate **findings**.
 
-![Enable Security Hub](/images/3.connect/sh-enable-service.png)
+> **Prerequisite:** You have permissions to enable Security Hub (`securityhub:*`) and **AWS Config** is already recording in this Region.
 
-2. Bật các **Security standards** cần thiết cho lab (có thể chọn nhiều):  
-   + **SOC 2** – kiểm soát về logging, encryption, IAM.  
-   + **PCI-DSS** – các kiểm soát về segmentation, firewall rules, access logging.  
-   + **HIPAA** – yêu cầu mã hóa in-transit & at-rest, audit logging chi tiết.
+---
 
-![Enable Standards](/images/3.connect/sh-enable-standards.png)
+## Console
 
-3. Tích hợp **Security Hub** với **AWS Config** để gom findings về một nơi:  
-   + Vào **Security Hub → Settings → Integrations → AWS services**.  
-   + Tìm **AWS Config** và bấm **Enable integration**.  
-   + Mở **Findings** và lọc theo `Product name = AWS Config` để xác minh dữ liệu đã đổ về.
+1. Open **Security Hub** → **Getting started** → **Enable Security Hub**.  
+2. Confirm the **current Region** (repeat in other Regions if needed).  
+3. *(Recommended)* In **Settings → General**, enable **Auto-enable new controls** for future standards updates.
 
-![Integrate with AWS Config](/images/3.connect/sh-config-integration.png)
+📸 Upload later:
+- `/images/3-2-sh-enable.png` *(Enable Security Hub screen)*
+
+---
+
+## CLI
+
+```bash
+REGION=ap-southeast-1
+
+# Enable Security Hub in this Region
+aws securityhub enable-security-hub --region "$REGION"
+
+# Quick check (will list 0 until you enable standards in 3.2.2)
+aws securityhub get-enabled-standards --region "$REGION"
+```
