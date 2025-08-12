@@ -1,5 +1,5 @@
 ---
-title : "Connect to Private instance"
+title : "Integrate Security Hub with AWS Config"
 date : "`r Sys.Date()`"
 weight : 2
 chapter : false
@@ -17,4 +17,5 @@ To do that, we have to include the System Manager endpoint in the VPC, that is, 
 ### Content:
    - [Enable DNS hostnames](./3.2.1-enablevpcdns/)
    - [Create VPC Endpoint](./3.2.2-createvpcendpoint/)
+
    - [Connect Private Instance](./3.3.3-connectec2/)
