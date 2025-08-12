@@ -1,5 +1,5 @@
 ---
-title : "PCI-DSS"
+title : "SOC 2"
 date : "`r Sys.Date()`"
 weight : 1
 chapter : false
@@ -43,5 +43,6 @@ In this step, you will **enable the SOC 2 security standard** in AWS Security Hu
 ---
 
 **Outcome:** SOC 2 standard is enabled; related controls are evaluating and producing findings that you can use to drive **automated remediation** and **audit reporting** in later steps.
+
 
 
