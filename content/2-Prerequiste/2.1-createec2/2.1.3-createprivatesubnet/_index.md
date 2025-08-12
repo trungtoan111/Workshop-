@@ -1,5 +1,5 @@
 ---
-title : "Create Private Subnet"
+title : "Create AWS Config Rules"
 date : "`r Sys.Date()`"
 weight : 3
 chapter : false
@@ -22,5 +22,6 @@ pre : " <b> 2.1.3 </b> "
 ![VPC](/images/2.prerequisite/018-createsubnet.png)
 
 3. Scroll to the bottom of the page, click **Create subnet**.
+
 
 The next step is to create the necessary security groups for the lab.
