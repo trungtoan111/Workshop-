@@ -1,5 +1,5 @@
 ---
-title : "Create Public Subnet"
+title : "Enable AWS Config"
 date : "`r Sys.Date()`"
 weight : 2
 chapter : false
@@ -94,5 +94,6 @@ pre : " <b> 2.1.2 </b> "
 ![VPC](/images/2.prerequisite/015-creatertb.png)
 
 16. Check that the route table information has been associated with **Lab Public Subnet** and the internet route information has been pointed to the Internet Gateway as shown below.
+
 
 ![VPC](/images/2.prerequisite/016-creatertb.png)
