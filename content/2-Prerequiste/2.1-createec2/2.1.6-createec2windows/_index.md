@@ -1,63 +1,244 @@
 ---
-title : "Create Private Instance"
-date : "`r Sys.Date()`"
-weight : 6
+title   : "Create IAM Roles and Policies"
+date    : "`r Sys.Date()`"
+weight  : 6
 chapter : false
-pre : " <b> 2.1.6 </b> "
+pre     : " <b> 2.1.6 </b> "
 ---
 
-1. Go to [EC2 service management console](https://console.aws.amazon.com/ec2/v2/home)
-  + Click **Instances**.
-  + Click **Launch instances**.
-  
-2. On the **Step 1: Choose an Amazon Machine Image (AMI)** page.
-  + Drag the mouse down.
-  + Click **Select** to select AMI **Microsoft Windows Server 2019 Base**.
-  
-![EC2](/images/2.prerequisite/034-createec2.png)
+**Goal**  
+Create/verify IAM roles so services can record, remediate, and report compliance:
 
-3. On the **Step 2: Choose an Instance Type** page.
- + Click on Instance type **t2.micro**.
- + Click **Next: Configure Instance Details**.
- 
-![EC2](/images/2.prerequisite/029-createec2.png)
+- **AWS Config** service-linked role (record/evaluate)
+- **Lambda Remediation** role (for custom auto-fixes)
+- **QuickSight** access to **Athena/Glue/S3** (reporting)
+- *(Optional)* **SSM Automation assume role** for Config native remediation (Section 5)
 
-4. At **Step 3: Configure Instance Details** page
-  + In the **Network** section, select **Lab VPC**.
-  + In the **Subnet** section, select **Lab Private Subnet**.
-  + At **Auto-assign Public IP** select **Use subnet setting (Disable)**
-  + Click **Next: Add Storage**.
+> **Prerequisites:** 2.1.1–2.1.5 completed; you have IAM permissions to create roles/policies.
 
-![EC2](/images/2.prerequisite/035-createec2.png)
+---
 
-5. Click **Next: Add Tags** to move to the next step.
-  + Click **Next: Configure Security Group** to move to the next step.
+## A) AWS Config service-linked role (verify/create)
 
+**Console**
+1. IAM → **Roles** → search **`AWSServiceRoleForConfig`**.  
+2. If present, no action. If missing, create it.
 
-6. On page **Step 6: Configure Security Group**.
-  + Select **Select an existing security group**.
-  + Select security group **SG Private Windows Instance**.
-  + Click **Review and Launch**.
+**CLI**
+```bash
+aws iam create-service-linked-role --aws-service-name config.amazonaws.com || true
+aws iam get-role --role-name AWSServiceRoleForConfig
+```
+📸 Upload later:
 
-![EC2](/images/2.prerequisite/036-createec2.png)
+/images/2-1-6-config-slr.png
 
-7. The warning dialog box appears because we do not configure the firewall to allow connections to port 22, Click **Continue** to continue.
+## B) Lambda Remediation role (EventBridge → Lambda path)
+**1) Trust policy**
 
-8. At page **Step 7: Review Instance Launch**.
-  + Click **Launch**.
+```json
 
-9. In the **Select an existing key pair or create a new key pair** dialog box.
-  + Click **Choose an existing key pair**.
-  + In the **Key pair name** section, select **LabKeypair**.
-  + Click **I acknowledge that I have access to the corresponding private key file, and that without this file, I won't be able to log into my instance.**.
-  + Click **Launch Instances** to create EC2 server.
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": { "Service": "lambda.amazonaws.com" },
+    "Action": "sts:AssumeRole"
+  }]
+}
+```
+## 2) Permissions policy (start least-privilege; narrow later)
 
-10. Click **View Instances** to return to the list of EC2 instances.
+```json
 
-11. Click the edit icon under the **Name** column.
-  + In the **Edit Name** dialog box, enter **Private Windows Instance**.
-  + Click **Save**.
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    { "Sid": "S3Encryption",
+      "Effect": "Allow",
+      "Action": [ "s3:PutBucketEncryption", "s3:GetBucketEncryption" ],
+      "Resource": "arn:aws:s3:::*"
+    },
+    { "Sid": "RestrictIngress",
+      "Effect": "Allow",
+      "Action": [ "ec2:DescribeSecurityGroups", "ec2:RevokeSecurityGroupIngress" ],
+      "Resource": "*"
+    },
+    { "Sid": "CloudWatchLogs",
+      "Effect": "Allow",
+      "Action": [ "logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents" ],
+      "Resource": "*"
+    },
+    { "Sid": "OptionalUpdateFindings",
+      "Effect": "Allow",
+      "Action": [ "securityhub:BatchUpdateFindings" ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+**CLI**  
 
-![EC2](/images/2.prerequisite/033-createec2.png)
+```bash
 
-Next, we will proceed to create IAM Roles to serve the Session Manager.
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+REGION=ap-southeast-1
+
+# Create role
+aws iam create-role \
+  --role-name LambdaRemediationRole \
+  --assume-role-policy-document file://lambda-trust.json
+
+# Attach inline policy
+aws iam put-role-policy \
+  --role-name LambdaRemediationRole \
+  --policy-name LambdaRemediationActions \
+  --policy-document file://lambda-remediation-policy.json
+
+# (Optional) Use AWS managed logging policy
+aws iam attach-role-policy \
+  --role-name LambdaRemediationRole \
+  --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+```
+📸 Upload later:
+
+/images/2-1-6-lambda-role.png
+
+## C) QuickSight access for Athena/Glue/S3 (reporting)
+**Policy to allow Athena/Glue + read logs S3 + write Athena results**
+
+Replace NETWORK_COMPLIANCE_BUCKET (and restrict prefixes as needed).
+
+```json
+
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    { "Sid": "AthenaAccess",
+      "Effect": "Allow",
+      "Action": [
+        "athena:StartQueryExecution","athena:GetQueryExecution","athena:GetQueryResults",
+        "athena:ListDataCatalogs","athena:ListWorkGroups","athena:GetWorkGroup"
+      ],
+      "Resource": "*"
+    },
+    { "Sid": "GlueCatalogRead",
+      "Effect": "Allow",
+      "Action": [
+        "glue:GetDatabase","glue:GetDatabases","glue:GetTable","glue:GetTables",
+        "glue:GetPartition","glue:GetPartitions"
+      ],
+      "Resource": "*"
+    },
+    { "Sid": "S3ReadLogs",
+      "Effect": "Allow",
+      "Action": [ "s3:GetObject", "s3:ListBucket" ],
+      "Resource": [
+        "arn:aws:s3:::NETWORK_COMPLIANCE_BUCKET",
+        "arn:aws:s3:::NETWORK_COMPLIANCE_BUCKET/*"
+      ]
+    },
+    { "Sid": "S3AthenaResults",
+      "Effect": "Allow",
+      "Action": [ "s3:PutObject", "s3:GetObject", "s3:ListBucket" ],
+      "Resource": [
+        "arn:aws:s3:::NETWORK_COMPLIANCE_BUCKET",
+        "arn:aws:s3:::NETWORK_COMPLIANCE_BUCKET/athena-results/*"
+      ]
+    }
+  ]
+}
+```
+**Attach to QuickSight service role**
+
+```bash
+
+# Role name is standard:
+aws iam get-role --role-name aws-quicksight-service-role-v0
+
+# Create & attach
+aws iam create-policy \
+  --policy-name QuickSightAthenaAccess \
+  --policy-document file://quicksight-athena-policy.json
+
+POLICY_ARN=$(aws iam list-policies \
+  --query "Policies[?PolicyName=='QuickSightAthenaAccess'].Arn" --output text)
+
+aws iam attach-role-policy \
+  --role-name aws-quicksight-service-role-v0 \
+  --policy-arn "$POLICY_ARN"
+```
+**Console alternative**: QuickSight → Manage QuickSight → Security & permissions → grant Athena, Glue, and your S3 bucket.
+
+📸 Upload later:
+
+/images/2-1-6-quicksight-role.png
+
+/images/2-1-6-quicksight-perms.png
+
+## D) (Optional) SSM Automation assume role (for Config native remediation)
+Trust policy
+
+```json
+
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": { "Service": "ssm.amazonaws.com" },
+    "Action": "sts:AssumeRole"
+  }]
+}
+Permissions policy (sample; narrow later)
+
+json
+Sao chép
+Chỉnh sửa
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    { "Effect": "Allow", "Action": [ "s3:PutBucketEncryption","s3:GetBucketEncryption" ], "Resource": "arn:aws:s3:::*" },
+    { "Effect": "Allow", "Action": [ "ec2:DescribeSecurityGroups","ec2:RevokeSecurityGroupIngress" ], "Resource": "*" },
+    { "Effect": "Allow", "Action": [ "logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents" ], "Resource": "*" }
+  ]
+}
+```
+**CLI**
+
+```bash
+
+aws iam create-role \
+  --role-name ConfigRemediationAutomationRole \
+  --assume-role-policy-document file://ssm-automation-trust.json
+
+aws iam put-role-policy \
+  --role-name ConfigRemediationAutomationRole \
+  --policy-name SsmAutomationActions \
+  --policy-document file://ssm-automation-policy.json
+```
+📸 Upload later:
+
+/images/2-1-6-ssm-automation-role.png
+
+## E) Validate
+```bash
+
+aws iam get-role --role-name AWSServiceRoleForConfig
+aws iam get-role --role-name LambdaRemediationRole
+aws iam get-role --role-name aws-quicksight-service-role-v0
+aws iam get-role --role-name ConfigRemediationAutomationRole  # if created
+```
+
+Test a small Lambda using **LambdaRemediationRole** and confirm CloudWatch Logs entries.
+
+In **QuickSight**, create an Athena dataset to verify access to **Glue Catalog and S3.**
+
+**Good practices**
+Scope actions to ARNs/tags as soon as targets are known (avoid "Resource": "*")
+
+Use separate roles per automation to limit blast radius
+
+Prefer customer-managed policies over large inline blobs for versioning/reuse
+
+With SSE-KMS buckets, ensure KMS key policies include these roles (Lambda/SSM/QuickSight)
+
