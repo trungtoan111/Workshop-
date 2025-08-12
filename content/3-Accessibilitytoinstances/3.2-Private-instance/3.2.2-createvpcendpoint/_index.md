@@ -1,6 +1,10 @@
-| title   | date            | weight | chapter | pre              |
-|---------|-----------------|--------|---------|------------------|
-| HIPAA   | `r Sys.Date()`  | 2      | false   | <b> 3.2.2 </b>   |
+---
+title : "Enable AWS Security Hub"
+date : "`r Sys.Date()`"
+weight : 2
+chapter : false
+pre : " <b> 3.2.2 </b> "
+---
 
 #### Enable HIPAA Standard in Security Hub
 
@@ -34,3 +38,4 @@ In this section, you will **enable the HIPAA security standard** in AWS Security
   Confirm HIPAA findings are generated and visible in Security Hub; note remediation guidance.
 
 > Tip: If you already enabled multiple standards (SOC 2 / PCI-DSS / HIPAA), findings will aggregate automatically. Use filters (e.g., **Product name = AWS Security Hub**, **Standards = HIPAA**) to focus on HIPAA-related checks.
+
