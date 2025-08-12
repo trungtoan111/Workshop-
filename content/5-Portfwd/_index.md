@@ -1,5 +1,5 @@
 ---
-title : "Port Forwarding"
+title : "Execute Auto-Remediation"
 date :  "`r Sys.Date()`" 
 weight : 5 
 chapter : false
@@ -86,6 +86,7 @@ Prove that you have not successfully installed the Session Manager Plugin. You m
 
 
 ![FWD](/images/5.fwd/004-fwd.png)
+
 
 
 Congratulations on completing the lab on how to use Session Manager to connect and store session logs in S3 bucket. Remember to perform resource cleanup to avoid unintended costs.
