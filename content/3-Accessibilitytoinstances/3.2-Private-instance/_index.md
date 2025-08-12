@@ -1,21 +1,135 @@
----
+<img width="1907" height="924" alt="image" src="https://github.com/user-attachments/assets/1c2d14a5-e29e-4d93-ad34-2f5c54ef5152" /><img width="1907" height="924" alt="image" src="https://github.com/user-attachments/assets/6cba61d0-661f-4816-b08f-4fefa9c3671f" />---
 title : "Integrate Security Hub with AWS Config"
 date : "`r Sys.Date()`"
 weight : 2
 chapter : false
 pre : " <b> 3.2. </b> "
 ---
-For **Windows instance** located in **private subnet**, there is no **public IP**, no **internet gateway** so it cannot go out **internet.**\
-With this type of instance, the traditional way is to use Bastion host technique which is expensive and laborious, but here we will use Session Manager with this type.\
-Basically, the **private instance** still has to open the **TCP 443** port to **System Manager**, but we don't want to allow connection go out to the internet, but only in its  VPC, to enhance our security posture.\
-To do that, we have to include the System Manager endpoint in the VPC, that is, using the **VPC interface endpoint:**
+**Goal**  
+Enable **AWS Security Hub** and integrate it with **AWS Config** so compliance/control evaluations (FSBP, CIS, PCI DSS) surface as unified **findings**. Many Security Hub controls are implemented using **AWS Config managed rules**, so making sure both services are enabled and connected gives you a single view for alerts and evidence.
 
-![ConnectPrivate](/images/arc-03.png) 
+### Architecture
 
-**VPC interface endpoint** is attached to the subnet, so this method can be done not only with **private subnet** but also with **public subnet**, meaning that with **public subnet**, you can completely prohibit **TCP 443** go out to the internet.
+![Security Hub + Config integration](/images/3-2-sh-arch.png)
 
-### Content:
-   - [Enable DNS hostnames](./3.2.1-enablevpcdns/)
-   - [Create VPC Endpoint](./3.2.2-createvpcendpoint/)
+> **Prerequisite:** AWS Config recording is already enabled in this Region (from Section 2).
 
-   - [Connect Private Instance](./3.3.3-connectec2/)
+---
+
+## What you will do
+
+1) **Enable Security Hub** in the Region(s) you monitor.  
+2) **Enable standards** (e.g., AWS Foundational Security Best Practices, CIS, PCI DSS).  
+3) **Verify the integration with AWS Config** (usually enabled by default).  
+4) *(Optional)* **Aggregate findings across Regions** into a home Region.  
+5) **Validate** controls & findings are flowing.
+
+---
+
+## A) Enable Security Hub
+
+**Console**
+1. Open **Security Hub** → **Getting started** → **Enable Security Hub**.  
+2. Choose the **current Region** (repeat in others as needed).
+
+📸 Upload later:
+- `/images/3-2-sh-enable.png` *(Enable Security Hub)*
+
+**CLI**
+```bash
+REGION=ap-southeast-1
+aws securityhub enable-security-hub --region "$REGION"
+B) Enable standards (FSBP / CIS / PCI DSS)
+Console
+
+Security Hub → Standards → Enable standard.
+
+Enable:
+
+AWS Foundational Security Best Practices (FSBP)
+
+CIS AWS Foundations Benchmark
+
+PCI DSS (if applicable)
+
+📸 Upload later:
+
+/images/3-2-sh-standards.png (Standards enabled)
+
+CLI (discover ARNs, then enable)
+
+bash
+Sao chép
+Chỉnh sửa
+# Discover available standards and versions in your Region
+aws securityhub describe-standards --region "$REGION"
+
+# Example: set ARNs from your Region's output (replace if versions differ)
+FSBP_ARN="arn:aws:securityhub:${REGION}::standards/aws-foundational-security-best-practices/v/1.0.0"
+CIS_ARN="arn:aws:securityhub:${REGION}::standards/cis-aws-foundations-benchmark/v/1.4.0"
+PCI_ARN="arn:aws:securityhub:${REGION}::standards/pci-dss/v/3.2.1"
+
+aws securityhub batch-enable-standards \
+  --region "$REGION" \
+  --standards-subscription-requests \
+  StandardsArn="$FSBP_ARN" \
+  StandardsArn="$CIS_ARN" \
+  StandardsArn="$PCI_ARN"
+Note: SOC 2 / HIPAA are not native Security Hub standards. Map evidence with AWS Audit Manager or use AWS Config Conformance Packs if required.
+
+C) Verify integration with AWS Config
+Console
+
+Security Hub → Integrations → AWS services.
+
+Find AWS Config → ensure it shows Enabled
+(Many Security Hub controls run on top of Config managed rules.)
+
+📸 Upload later:
+
+/images/3-2-sh-integrations.png (Integrations – AWS Config: Enabled)
+
+D) (Optional) Aggregate findings across Regions
+Console
+
+Security Hub → Settings → Finding aggregation → Linking mode: All regions → Save.
+
+CLI
+
+bash
+Sao chép
+Chỉnh sửa
+HOME_REGION="$REGION"   # choose a "home" Region for the rollup view
+aws securityhub create-finding-aggregator \
+  --region "$HOME_REGION" \
+  --linking-mode ALL_REGIONS
+📸 Upload later:
+
+/images/3-2-sh-aggregator.png (Finding aggregation enabled)
+
+E) Validate controls & findings
+Console
+
+Standards → Controls: status moves from Evaluating → Passed/Failed.
+
+Findings: check for ACTIVE findings.
+
+📸 Upload later:
+
+/images/3-2-sh-controls.png (Controls view)
+
+/images/3-2-sh-findings.png (Findings list)
+
+CLI (quick checks)
+
+bash
+Sao chép
+Chỉnh sửa
+# List enabled standards
+aws securityhub get-enabled-standards --region "$REGION"
+
+# Fetch a few active findings
+aws securityhub get-findings \
+  --region "$REGION" \
+  --filters '{"RecordState":[{"Comparison":"EQUALS","Value":"ACTIVE"}]}' \
+  --max-results 5
